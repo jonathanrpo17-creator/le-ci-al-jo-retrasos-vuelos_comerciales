@@ -1,203 +1,192 @@
-# Análisis de Retrasos en Vuelos Comerciales (EE.UU. 2022)
-
-**Proyecto Final — Introducción a la Ciencia de Datos**  
-Especialización en Ciencia de Datos e Inteligencia Artificial  
-Universidad de Medellín — 2026-I
-
-**Autores:** Leydi Tatiana Arboleda Vélez — CC 1128272760
-             Cindy Velasquez Castaño - CC 1020452905 
-             Jhonatan Restrepo Jaramillo - CC 1020454173
-             Alejandro Ramirez - CC  
----
+# ✈️ Predicción de Retrasos en Vuelos Comerciales
 
 ## Descripción del Proyecto
 
-Este proyecto aplica técnicas de ciencia de datos para analizar y predecir retrasos en vuelos comerciales de EE.UU. utilizando datos oficiales del gobierno estadounidense. Se abordan dos enfoques complementarios: análisis exploratorio visual, clasificación binaria con modelos de Machine Learning .
+Este proyecto forma parte del programa de **Especialización en Ciencia de Datos e Inteligencia Artificial** y tiene como objetivo analizar y predecir si un vuelo comercial experimentará un retraso significativo en su llegada, definido como un retraso superior a **15 minutos**, umbral estándar utilizado por la Administración Federal de Aviación de los Estados Unidos (FAA).
 
-**Pregunta central:** ¿Es posible predecir si un vuelo llegará con más de 15 minutos de retraso, y cómo evolucionan los retrasos a lo largo del tiempo?
+A través de técnicas de análisis exploratorio de datos (EDA) y modelos de clasificación supervisada, se busca identificar los factores más determinantes en la ocurrencia de retrasos y construir un modelo predictivo confiable que apoye la toma de decisiones en la industria aeronáutica.
 
----
-
-##  Estructura del Proyecto 
-
-```
-proyecto_vuelos/
-│
-├── src/
-│   ├── __init__.py
-│   ├── preprocessing.py       # Pipeline de limpieza y transformación
-│   ├── model.py               # Entrenamiento y evaluación de modelos
-│   └── utils.py               # Funciones auxiliares
-│
-├── data/
-│   ├── raw/
-│   │   └── datos.csv          # Datos originales descargados de BTS
-│   └── processed/
-│       └── datos_limpios.csv  # Datos preprocesados listos para modelar
-│
-├── models/
-│   └── modelo_entrenado.pkl   # Modelo serializado (Random Forest / Logistic)
-│
-├── tests/
-│   ├── test_model.py          # Pruebas unitarias del modelo
-│   └── test_api.py            # Pruebas de la API/app de Streamlit
-│
-├── app.py                     # Aplicación Streamlit (interfaz interactiva)
-├── requirements.txt           # Dependencias del proyecto
-├── .env                       # Variables de entorno (¡NO subir a Git!)
-├── .env.example               # Plantilla de variables de entorno
-├── README.md                  # Este archivo
-└── .gitignore                 # Archivos excluidos del repositorio
-```
+**Autores:**
+- Cindy Vanessa Velásquez Castaño
+- Leidy Tatiana Arboleda Vélez
+- Alejandro Ramírez Marín
+- Jonathan Restrepo Jaramillo
 
 ---
 
-##  Dataset
+## 🚨 Problema de Negocio
 
-| Atributo | Detalle |
-|---|---|
-| **Fuente** | [Bureau of Transportation Statistics (BTS)](https://transtats.bts.gov) — Gobierno de EE.UU. |
-| **Período** | Junio – Diciembre 2022 |
-| **Registros** | 3,995,336 vuelos |
-| **Variables originales** | 110 columnas |
-| **Variables seleccionadas** | 19 columnas relevantes |
-| **Variable objetivo** | `Delayed` — 1 si `ArrDelay` > 15 min (estándar FAA) |
+Los retrasos en vuelos comerciales generan pérdidas económicas de miles de millones de dólares anuales para aerolíneas, aeropuertos y pasajeros. Identificar de manera anticipada los vuelos con alta probabilidad de retraso permite a las aerolíneas y operadores aeroportuarios tomar decisiones preventivas: redistribuir tripulaciones, ajustar conexiones, comunicar alertas tempranas a pasajeros y optimizar recursos en tierra.
 
-### Variables principales
+La incapacidad de predecir estos eventos genera ineficiencias operativas, insatisfacción del cliente y pérdidas económicas evitables.
+
+---
+
+## 🎯 Objetivos del Proyecto
+
+- Realizar un análisis exploratorio exhaustivo de los datos de vuelos del segundo semestre de 2022.
+- Identificar los patrones temporales, operativos y geográficos asociados a los retrasos.
+- Construir y comparar dos modelos de clasificación binaria para predecir si un vuelo se retrasará más de 15 minutos.
+- Seleccionar el modelo con mejor capacidad de detección de retrasos (recall), alineado con el objetivo de negocio.
+
+---
+
+## 📊 Dataset
+
+**Fuente:** Bureau of Transportation Statistics (BTS) — agencia oficial del Departamento de Transporte de los Estados Unidos (DOT).
+
+**Período:** Junio a Diciembre de 2022.
+
+**Acceso:** Público y gratuito en [transtats.bts.gov](https://transtats.bts.gov).
+
+El dataset contiene registros de rendimiento en tiempo real de aerolíneas certificadas que operan en territorio estadounidense, incluyendo información sobre vuelos, retrasos, cancelaciones y sus causas.
+
+### Variables utilizadas
 
 | Variable | Tipo | Descripción |
 |---|---|---|
-| `FlightDate` | Fecha | Fecha del vuelo |
-| `Month` / `DayOfWeek` | Ordinal | Mes y día de la semana |
+| `FlightDate` | Fecha | Fecha del vuelo (YYYY-MM-DD) |
+| `Month` | Ordinal | Mes (6 = Junio … 12 = Diciembre) |
+| `DayOfWeek` | Ordinal | Día de la semana (1 = Lunes … 7 = Domingo) |
 | `Reporting_Airline` | Nominal | Código IATA de la aerolínea |
-| `Origin` / `Dest` | Nominal | Aeropuerto de origen y destino |
-| `DepDelay` / `ArrDelay` | Continua | Minutos de retraso en salida/llegada |
-| `Distance` / `AirTime` | Continua | Distancia (millas) y tiempo en aire (min) |
-| `CarrierDelay` / `WeatherDelay` / `NASDelay` | Continua | Minutos de retraso por causa |
-| `Cancelled` / `Diverted` | Binaria | Cancelación o desvío del vuelo |
-| `Delayed` | Binaria | **Variable objetivo** |
+| `Origin` / `Dest` | Nominal | Código del aeropuerto de origen/destino |
+| `OriginStateName` / `DestStateName` | Nominal | Estado de origen/destino |
+| `DepDelay` | Continua | Minutos de retraso en la salida |
+| `ArrDelay` | Continua | Minutos de retraso en la llegada |
+| `Distance` | Continua | Distancia del vuelo en millas |
+| `AirTime` | Continua | Tiempo en el aire en minutos |
+| `CarrierDelay` | Continua | Retraso atribuido a la aerolínea (minutos) |
+| `WeatherDelay` | Continua | Retraso por condiciones climáticas (minutos) |
+| `NASDelay` | Continua | Retraso por el Sistema Aéreo Nacional (minutos) |
+| `Flight_Number_Reporting_Airline` | Discreta | Número de vuelo |
+| `Cancelled` | Binaria | 1 = Cancelado, 0 = No cancelado |
+| `Diverted` | Binaria | 1 = Desviado, 0 = No desviado |
+| `Delayed` | Binaria | **Variable objetivo**: 1 si ArrDelay > 15 min |
 
 ---
 
-## Análisis Exploratorio de Datos (EDA)
+## 🔍 Análisis Exploratorio de Datos (EDA)
 
-El EDA se realizó con **Plotly** y **Seaborn**, respondiendo cuatro preguntas clave:
+El EDA se estructuró en torno a cuatro preguntas de negocio clave:
 
-1. ¿Qué aerolíneas tienen mayor tasa de retrasos?
-2. ¿En qué meses y días de la semana se concentran más retrasos?
-3. ¿Cuál es la causa principal de los retrasos?
-4. ¿Existe relación entre la distancia del vuelo y el retraso?
+**Distribución de la variable objetivo:** Aproximadamente el 21% de los vuelos presentaron retrasos superiores a 15 minutos, lo que genera un dataset moderadamente desbalanceado. La distribución de `ArrDelay` fue confirmada como no normal mediante la prueba estadística Kolmogórov-Smirnov.
 
-### Principales hallazgos
+**Patrones temporales:** El análisis por mes y día de la semana reveló que diciembre concentra la mayor tasa de retrasos del período estudiado, probablemente asociado al incremento de la demanda en temporada navideña. A nivel semanal, los viernes son el día con mayor incidencia de retrasos, mientras que los sábados presentan el mejor desempeño.
 
-- **Distribución de la variable objetivo:** aproximadamente 21% de los vuelos presentaron retraso significativo (>15 min).
-- **Estacionalidad semanal:** los ACF/PACF confirmaron picos significativos en lags 7, 14 y 21, evidenciando un ciclo semanal en el número de vuelos retrasados.
-- **Causa dominante:** `CarrierDelay` (retrasos atribuidos a la aerolínea) y `DepDelay` (retraso en salida) son los predictores más correlacionados con la variable objetivo.
-- **Variación por aerolínea:** existe dispersión notable en la mediana de `ArrDelay` entre aerolíneas; algunas superan consistentemente el umbral de 15 min.
-- **Distancia vs. retraso:** no se observa una correlación lineal fuerte entre distancia y retraso de llegada, lo que indica que los retrasos operativos dominan sobre la distancia.
+**Causas de retraso:** Entre los vuelos clasificados como retrasados, los factores operativos de la aerolínea (`CarrierDelay`, promedio de 22.73 minutos) superan a los retrasos por clima (`WeatherDelay`) y por el Sistema Aéreo Nacional (`NASDelay`), lo que indica que la gestión interna de las aerolíneas es el factor más crítico.
+
+**Relaciones entre variables:** La matriz de correlación evidenció que el retraso en la salida (`DepDelay`) es el predictor más correlacionado con el retraso en la llegada. La distancia del vuelo no mostró correlación significativa con el retraso, lo que sugiere que los retrasos operativos dominan sobre las características geográficas del vuelo. Los boxplots comparativos confirmaron que `DepDelay` diferencia claramente los grupos de vuelos retrasados y no retrasados.
 
 ---
 
-## Preprocesamiento
+## 🤖 Modelos Utilizados
 
-El preprocesamiento utiliza **Pipelines** y **ColumnTransformer** de scikit-learn para garantizar reproducibilidad:
+### Regresión Logística
 
-- **Codificación:** `LabelEncoder` para variables ordinales (`DayOfWeek`, `Month`) y `OneHotEncoding` para variables nominales (`Reporting_Airline`, `OriginStateName`).
-- **Escalado:** `StandardScaler` sobre predictores continuos.
-- **Reducción de dimensionalidad:** selección de las 7 variables con mayor poder predictivo tras análisis de correlación con `Delayed`.
-- **Dataset final para modelado:** 2,719,802 registros (después de eliminar vuelos cancelados y con nulos en `ArrDelay`).
+Se entrenó con las variables predictoras numéricas: `DepDelay`, `Distance`, `AirTime`, `Month`, `DayOfWeek`, `CarrierDelay` y `WeatherDelay`. Los datos fueron estandarizados con `StandardScaler` y el modelo fue ajustado con `statsmodels` para acceder a estadísticos completos (coeficientes, p-valores, intervalos de confianza). Se utilizó una división 70/30 para entrenamiento y prueba, con estratificación sobre la variable objetivo.
 
----
+### Random Forest
 
-## Modelos de Machine Learning
-
-### Modelo 1 — Regresión Logística
-
-**Justificación:** variable objetivo binaria (`Delayed`), interpretabilidad de coeficientes.
-
-**Predictores:** `DepDelay`, `Distance`, `AirTime`, `Month`, `DayOfWeek`, `CarrierDelay`, `WeatherDelay`
-
-| Métrica | Valor |
-|---|---|
-| Pseudo R² (McFadden) | 0.709 |
-| Accuracy | 96% |
-| AUC-ROC | **0.9597** |
-| Precision (retrasado) | 96% |
-| Recall (retrasado) | 82% |
-| F1-score (retrasado) | 88% |
-
-> El modelo logístico muestra excelente discriminación (AUC ≈ 0.96), impulsado principalmente por `DepDelay` y `CarrierDelay`.
+Se entrenó con todas las variables disponibles, incluyendo variables categóricas como aerolínea, aeropuerto de origen y destino. Las variables categóricas fueron codificadas mediante `OneHotEncoder`. El modelo fue construido con 100 árboles y profundidad máxima de 10 niveles, usando una división 80/20 para entrenamiento y prueba. Se empleó un `Pipeline` de scikit-learn para encapsular el preprocesamiento y el clasificador.
 
 ---
 
-### Modelo 2 — Random Forest (Clasificador)
+## 📈 Evaluación de Modelos
 
-**Justificación:** captura relaciones no lineales entre variables, robustez ante outliers, importancia de variables interpretable.
+| Métrica | Regresión Logística | Random Forest |
+|---|---|---|
+| Accuracy | 0.96 | 0.85 |
+| Precision | 0.96 | 0.97 |
+| Recall | **0.82** | 0.26 |
+| F1-Score | 0.88 | 0.42 |
+| AUC-ROC | **0.96** | 0.94 |
 
-**Configuración sugerida:**
-```python
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.pipeline import Pipeline
+**Interpretación:**
 
-rf_pipeline = Pipeline([
-    ('preprocessor', preprocessor),          # ColumnTransformer definido en preprocessing.py
-    ('classifier', RandomForestClassifier(
-        n_estimators=200,
-        max_depth=15,
-        class_weight='balanced',             # Manejo del desbalance de clases
-        random_state=42,
-        n_jobs=-1
-    ))
-])
+El objetivo central de este proyecto es detectar la mayor cantidad posible de vuelos retrasados, lo cual implica maximizar el **recall** (sensibilidad). Bajo esta premisa, los resultados deben leerse en función de cuántos vuelos retrasados logra identificar cada modelo.
+
+La **Regresión Logística** alcanzó un recall de 0.82, lo que significa que identifica correctamente el 82% de los vuelos con retraso real. Su AUC de 0.96 confirma una excelente capacidad discriminativa entre clases. Desde la matriz de confusión, el modelo clasificó correctamente 919,092 vuelos no retrasados e identificó 194,919 casos de retraso, con 42,750 falsos negativos.
+
+El **Random Forest**, aunque ligeramente superior en precisión (0.97 vs 0.96), presenta un recall de solo 0.26, dejando sin detectar el 74% de los vuelos que efectivamente se retrasaron. Este comportamiento lo hace inadecuado para el objetivo planteado, ya que en la práctica implicaría ignorar la mayoría de los retrasos reales.
+
+El análisis de Odds Ratios en la regresión logística confirmó que `CarrierDelay` es el predictor más influyente (OR ≈ 1,640), seguido por `AirTime` y `DepDelay`, mientras que la distancia actúa como factor protector (OR < 1), lo que sugiere que los vuelos largos tienen más capacidad para recuperar retrasos de salida durante el trayecto.
+
+---
+
+## ✅ Conclusión Final
+
+La **Regresión Logística** es el modelo más adecuado para este problema. Su superioridad no radica únicamente en las métricas globales, sino en su alineación con el objetivo de negocio: detectar vuelos retrasados con la mayor precisión posible.
+
+Con un recall de 0.82 frente al 0.26 del Random Forest, y un F1-Score de 0.88 frente a 0.42, la regresión logística demuestra un equilibrio superior entre sensibilidad y precisión. Adicionalmente, su AUC de 0.96 garantiza una excelente capacidad de discriminación en todos los umbrales de clasificación.
+
+Otro valor diferencial de la Regresión Logística es su interpretabilidad: los coeficientes permiten cuantificar el impacto de cada variable en la probabilidad de retraso, lo cual es fundamental para comunicar resultados a equipos operativos no especializados en machine learning. El Random Forest, aunque más preciso en la clase mayoritaria, sacrifica la detección de retrasos reales de manera inaceptable para el contexto del problema.
+
+---
+
+## 🛠️ Tecnologías Utilizadas
+
+- **Python 3.x**
+- `pandas` — manipulación y análisis de datos
+- `numpy` — operaciones numéricas
+- `scikit-learn` — modelos de ML, preprocesamiento y métricas
+- `statsmodels` — regresión logística con estadísticos detallados
+- `matplotlib` y `seaborn` — visualizaciones estáticas
+- `plotly` — visualizaciones interactivas
+- `scipy` — pruebas estadísticas
+- `requests` y `zipfile` — descarga y descompresión de datos desde la BTS
+
+---
+
+## 📁 Estructura del Proyecto
+
+```
+proyecto-retrasos-vuelos/
+│
+├── Proyecto_Final.ipynb        # Notebook principal con EDA y modelos
+├── README.md                   # Documentación del proyecto
+└── data/                       # (Opcional) Carpeta para datos locales
+    └── vuelos_2022_H2.csv      # Dataset descargado de la BTS
 ```
 
-**Variables de mayor importancia esperada:** `DepDelay`, `CarrierDelay`, `WeatherDelay`, `DayOfWeek`, `Month`.
-
-
----
-## Dependencias principales
-
-```
-pandas
-numpy
-scikit-learn
-plotly
-seaborn
-matplotlib
-statsmodels
-pmdarima
-streamlit
-joblib
-scipy
-```
-
-Ver `requirements.txt` para versiones exactas.
+> **Nota:** Los datos se descargan directamente desde la fuente oficial de la BTS al ejecutar el notebook, por lo que no es necesario disponer de los archivos de forma local.
 
 ---
 
-## GitHub
+## ▶️ Cómo Ejecutar el Proyecto
 
-Este proyecto utiliza GitHub para control de versiones. El archivo `.gitignore` excluye:
-- `.env` (credenciales y variables de entorno)
-- Archivos de datos crudos pesados (`data/raw/`)
-- Entornos virtuales (`venv/`, `__pycache__/`)
+**Requisitos previos:**
+- Python 3.8 o superior
+- Jupyter Notebook o Google Colab
+- Conexión a internet (para la descarga automática del dataset)
+
+**Pasos:**
+
+1. Clonar o descargar el repositorio en tu entorno local o abrirlo directamente en Google Colab.
+
+2. Instalar las dependencias necesarias ejecutando en una celda:
+   ```bash
+   pip install pandas numpy scikit-learn statsmodels matplotlib seaborn plotly scipy requests
+   ```
+
+3. Abrir el archivo `Proyecto_Final.ipynb` en Jupyter Notebook o Google Colab.
+
+4. Ejecutar las celdas en orden secuencial. La primera sección descargará automáticamente los datos mensuales de la BTS (junio a diciembre de 2022) y los consolidará en un único DataFrame.
+
+5. Continuar con las secciones de limpieza de datos, EDA, modelado y evaluación.
+
+> **Tiempo estimado de ejecución:** La descarga y procesamiento del dataset puede tomar varios minutos dependiendo de la velocidad de la conexión y los recursos del entorno.
 
 ---
 
-## Conclusiones
+## 👤 Autor
 
-1. **`DepDelay` es el predictor más poderoso:** un retraso en la salida casi siempre se traduce en retraso en la llegada, con una correlación casi perfecta con `Delayed`.
-2. **Los retrasos tienen marcada estacionalidad semanal:** los viernes y domingos concentran mayor número de retrasos, mientras que los martes y miércoles son los días con mejor desempeño.
-3. **Junio y diciembre son los meses críticos:** junio por alta demanda de verano; diciembre por condiciones climáticas y mayor volumen navideño.
-4. **La causa operativa de la aerolínea (`CarrierDelay`) supera al clima:** la mayoría de los retrasos son atribuibles a la operación interna de las aerolíneas, no a factores externos.
-5. **La distancia no determina el retraso:** vuelos cortos y largos presentan distribuciones similares de retraso, lo que confirma que el origen del problema es operativo.
-6. **Los retrasos de llegada siguen una distribución asimétrica con cola pesada a la derecha:** la mayoría de vuelos retrasados acumula entre 15 y 60 minutos, pero existen casos extremos de varios cientos de minutos.
-7. **El modelo SARIMA confirma la previsibilidad de los patrones temporales:** la estacionalidad semanal es estadísticamente significativa (lags 7, 14, 21 en ACF), lo que permite proyectar el volumen de retrasos con antelación.
+Proyecto desarrollado como entrega académica para la **Especialización en Ciencia de Datos e Inteligencia Artificial**.
 
+| Integrante | 
+|---|
+| Cindy Vanessa Velásquez Castaño |
+| Leidy Tatiana Arboleda Vélez |
+| Alejandro Ramírez Marín |
+| Jonathan Restrepo Jaramillo |
 
----
-
-## Licencia
-
-Uso académico — Universidad de Medellín 2026-I.  
-Datos: dominio público — [Bureau of Transportation Statistics](https://transtats.bts.gov).
+*Fecha de entrega: 12 de mayo de 2026*
